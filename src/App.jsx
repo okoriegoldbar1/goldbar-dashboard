@@ -424,51 +424,154 @@ function NoData(){return(<div style={{display:"flex",flexDirection:"column",alig
 
 // ─── OVERVIEW TAB ─────────────────────────────────────────────────────────────
 function OverviewTab({filtered,sourceStats,apptStats,pipelineStats,onOpen}) {
+  const [activeSrc, setActiveSrc] = useState("All");
   if(!filtered.length)return<NoData/>;
-  const tl=sourceStats.reduce((s,r)=>s+r.leads,0),tb=sourceStats.reduce((s,r)=>s+r.booked,0),tw=sourceStats.reduce((s,r)=>s+r.closed,0),tq=pipelineStats.find(p=>p.stage==="Qualified")?.count||0;
+
+  // Filter sourceStats and chart data by selected source
+  const filteredStats = activeSrc==="All"
+    ? sourceStats
+    : sourceStats.filter(r=>r.source===activeSrc);
+
+  const tl=filteredStats.reduce((s,r)=>s+r.leads,0);
+  const tb=filteredStats.reduce((s,r)=>s+r.booked,0);
+  const tw=filteredStats.reduce((s,r)=>s+r.closed,0);
+  const tq=activeSrc==="All"
+    ? pipelineStats.find(p=>p.stage==="Qualified")?.count||0
+    : Math.round((pipelineStats.find(p=>p.stage==="Qualified")?.count||0) * (tl / Math.max(sourceStats.reduce((s,r)=>s+r.leads,0),1)));
+
+  // For chart: if a source is selected, zero out all other sources
+  const chartData = filtered.map(r=>{
+    if(activeSrc==="All") return {...r, day:r.label};
+    const row = {day:r.label};
+    SOURCES.forEach(s=>{ row[s] = s===activeSrc ? (r[s]||0) : 0; });
+    return row;
+  });
+
+  // Visible sources in chart
+  const visibleSources = activeSrc==="All" ? SOURCES : [activeSrc];
+
+  // Conversion rate for selected source
+  const selectedStat = activeSrc==="All" ? null : filteredStats[0];
+  const bookRate = selectedStat ? pct(selectedStat.booked, selectedStat.leads) : pct(tb,tl);
+  const winRate  = selectedStat ? pct(selectedStat.closed, selectedStat.leads) : pct(tw,tl);
+
   return(
-    <div style={{display:"flex",flexDirection:"column",gap:28}}>
+    <div style={{display:"flex",flexDirection:"column",gap:24}}>
+
+      {/* ── Source Filter Pills ── */}
+      <div style={{display:"flex",alignItems:"center",gap:6,flexWrap:"wrap"}}>
+        <span style={{color:T.muted,fontSize:9,letterSpacing:"0.14em",textTransform:"uppercase",fontFamily:T.sans,marginRight:4}}>Source</span>
+        {["All",...SOURCES].map(src=>{
+          const on = activeSrc===src;
+          const color = src==="All" ? T.gold : SOURCE_COLORS[src];
+          return(
+            <button key={src} onClick={()=>setActiveSrc(src)} style={{
+              background: on ? `${color}18` : "transparent",
+              border: `0.5px solid ${on ? color : T.border}`,
+              borderRadius: 2,
+              padding: "5px 14px",
+              color: on ? color : T.muted,
+              fontSize: 10,
+              cursor: "pointer",
+              fontFamily: T.sans,
+              letterSpacing: "0.06em",
+              display: "flex",
+              alignItems: "center",
+              gap: 6,
+              transition: "all 0.15s",
+            }}>
+              {src!=="All" && (
+                <div style={{width:6,height:6,borderRadius:1,background:color,opacity:on?1:0.5}}/>
+              )}
+              {src}
+            </button>
+          );
+        })}
+        {activeSrc!=="All" && (
+          <button onClick={()=>setActiveSrc("All")} style={{
+            background:"transparent",border:"none",cursor:"pointer",
+            color:T.muted,fontSize:10,fontFamily:T.sans,
+            marginLeft:4,opacity:0.6,
+          }}>✕ Clear</button>
+        )}
+      </div>
+
+      {/* ── KPI Cards ── */}
       <div>
-        <SectionLabel>{filtered.length===1?filtered[0].label:`${filtered.length}-Day Performance Overview`}</SectionLabel>
+        <SectionLabel>
+          {activeSrc==="All"
+            ? (filtered.length===1?filtered[0].label:`${filtered.length}-Day Performance Overview`)
+            : `${activeSrc} · ${filtered.length}-Day Overview`}
+        </SectionLabel>
         <div style={{display:"grid",gridTemplateColumns:"repeat(6,1fr)",gap:10}}>
-          <KpiCard label="Total Leads" value={tl} sub={`${filtered.length}d · ${Math.round(tl/filtered.length)}/day avg`} subColor={T.goldDim} gold onClick={()=>onOpen(null)}/>
-          <KpiCard label="Avg Per Day" value={Math.round(tl/filtered.length)} sub="daily lead volume" subColor={T.muted}/>
+          <KpiCard label="Total Leads" value={tl} sub={`${Math.round(tl/Math.max(filtered.length,1))}/day avg`} subColor={T.goldDim} gold onClick={()=>onOpen(null, activeSrc==="All"?null:activeSrc)}/>
+          <KpiCard label="Avg Per Day" value={Math.round(tl/Math.max(filtered.length,1))} sub="daily lead volume" subColor={T.muted}/>
           <KpiCard label="Appointments" value={apptStats.booked} sub={`${apptStats.completed} completed`} onClick={()=>onOpen("Appt Booked")}/>
-          <KpiCard label="Conversion" value={pct(tb,tl)} sub="lead to appointment" subColor={T.gold} gold/>
+          <KpiCard label="Book Rate" value={bookRate} sub="lead to appointment" subColor={T.gold} gold/>
           <KpiCard label="Qualified" value={tq} sub="active opportunities" subColor={T.muted} onClick={()=>onOpen("Qualified")}/>
-          <KpiCard label="Closed Won" value={tw} sub={pct(tw,tl)+" win rate"} subColor={T.gold} gold onClick={()=>onOpen("Closed Won")}/>
+          <KpiCard label="Closed Won" value={tw} sub={`${winRate} win rate`} subColor={T.gold} gold onClick={()=>onOpen("Closed Won")}/>
         </div>
       </div>
 
+      {/* ── Chart + Side Stats ── */}
       <div style={{display:"grid",gridTemplateColumns:"2fr 1fr",gap:16}}>
         <LuxCard style={{padding:"22px 22px 18px"}}>
           <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:16}}>
             <div>
-              <div style={{fontFamily:T.sans,color:T.platinum,fontSize:13,fontWeight:400,letterSpacing:"0.06em",marginBottom:4}}>Daily Lead Volume</div>
-              <div style={{color:T.muted,fontSize:10,fontFamily:T.mono}}>Stacked by acquisition source</div>
+              <div style={{fontFamily:T.sans,color:T.platinum,fontSize:13,fontWeight:400,letterSpacing:"0.06em",marginBottom:4}}>
+                Daily Lead Volume
+                {activeSrc!=="All" && (
+                  <span style={{color:SOURCE_COLORS[activeSrc],fontSize:11,marginLeft:10,fontFamily:T.mono}}>· {activeSrc}</span>
+                )}
+              </div>
+              <div style={{color:T.muted,fontSize:10,fontFamily:T.mono}}>
+                {activeSrc==="All" ? "Stacked by acquisition source" : `Filtered to ${activeSrc} only`}
+              </div>
             </div>
-            <div style={{display:"flex",gap:12,flexWrap:"wrap",justifyContent:"flex-end"}}>
-              {SOURCES.map(s=>(<div key={s} style={{display:"flex",alignItems:"center",gap:5}}><div style={{width:6,height:6,borderRadius:1,background:SOURCE_COLORS[s]}}/><span style={{color:T.muted,fontSize:8,fontFamily:T.sans,letterSpacing:"0.08em"}}>{s.split(" ")[0]}</span></div>))}
+            <div style={{display:"flex",gap:8,flexWrap:"wrap",justifyContent:"flex-end"}}>
+              {visibleSources.map(s=>(<div key={s} style={{display:"flex",alignItems:"center",gap:5}}>
+                <div style={{width:6,height:6,borderRadius:1,background:SOURCE_COLORS[s]}}/>
+                <span style={{color:T.silver,fontSize:8,fontFamily:T.sans,letterSpacing:"0.08em"}}>{s.split(" ")[0]}</span>
+              </div>))}
             </div>
           </div>
           <ResponsiveContainer width="100%" height={190}>
-            <AreaChart data={filtered.map(r=>({...r,day:r.label}))} margin={{top:4,right:0,left:-24,bottom:0}}>
+            <AreaChart data={chartData} margin={{top:4,right:0,left:-24,bottom:0}}>
               <CartesianGrid strokeDasharray="1 4" stroke={T.border} vertical={false}/>
               <XAxis dataKey="day" tick={{fill:T.muted,fontSize:8,fontFamily:"DM Mono"}} tickLine={false} axisLine={false} interval={Math.max(0,Math.floor(filtered.length/9)-1)}/>
               <YAxis tick={{fill:T.muted,fontSize:8,fontFamily:"DM Mono"}} tickLine={false} axisLine={false}/>
               <Tooltip content={<LuxTooltip/>}/>
-              {SOURCES.slice().reverse().map(s=>(<Area key={s} type="monotone" dataKey={s} stackId="1" stroke="none" fill={SOURCE_COLORS[s]} fillOpacity={0.85}/>))}
+              {visibleSources.slice().reverse().map(s=>(
+                <Area key={s} type="monotone" dataKey={s} stackId="1" stroke="none" fill={SOURCE_COLORS[s]} fillOpacity={0.88}/>
+              ))}
             </AreaChart>
           </ResponsiveContainer>
         </LuxCard>
 
         <div style={{display:"flex",flexDirection:"column",gap:8}}>
-          {[{l:"Show Rate",v:apptStats.showRate+"%",c:T.green},{l:"Cancel Rate",v:apptStats.cancelRate+"%",c:T.red},{l:"Meta → Booked",v:pct(sourceStats[0]?.booked||0,sourceStats[0]?.leads||1),c:T.goldBright},{l:"Referral → Booked",v:pct(sourceStats[1]?.booked||0,sourceStats[1]?.leads||1),c:T.gold}].map(item=>(
-            <LuxCard key={item.l} style={{padding:"16px 18px",flex:1}}>
-              <div style={{color:T.muted,fontFamily:T.sans,fontSize:8,letterSpacing:"0.18em",textTransform:"uppercase",marginBottom:8}}>{item.l}</div>
-              <div style={{color:item.c,fontSize:24,fontWeight:400,fontFamily:T.mono}}>{item.v}</div>
-            </LuxCard>
-          ))}
+          {activeSrc==="All" ? (
+            // Default side stats when no filter
+            [{l:"Show Rate",v:apptStats.showRate+"%",c:T.green},{l:"Cancel Rate",v:apptStats.cancelRate+"%",c:T.red},{l:"Meta → Booked",v:pct(sourceStats[0]?.booked||0,sourceStats[0]?.leads||1),c:T.goldBright},{l:"Referral → Booked",v:pct(sourceStats[1]?.booked||0,sourceStats[1]?.leads||1),c:T.gold}].map(item=>(
+              <LuxCard key={item.l} style={{padding:"16px 18px",flex:1}}>
+                <div style={{color:T.muted,fontFamily:T.sans,fontSize:8,letterSpacing:"0.18em",textTransform:"uppercase",marginBottom:8}}>{item.l}</div>
+                <div style={{color:item.c,fontSize:24,fontWeight:400,fontFamily:T.mono}}>{item.v}</div>
+              </LuxCard>
+            ))
+          ) : (
+            // Source-specific stats when filtered
+            [
+              {l:"Total Leads",    v:tl,                              c:SOURCE_COLORS[activeSrc]},
+              {l:"Appts Booked",  v:selectedStat?.booked||0,          c:T.gold},
+              {l:"Booking Rate",  v:bookRate,                         c:T.goldBright},
+              {l:"Closed Won",    v:tw,                               c:T.green},
+              {l:"Win Rate",      v:winRate,                          c:T.green},
+            ].map(item=>(
+              <LuxCard key={item.l} style={{padding:"14px 18px",flex:1}}>
+                <div style={{color:T.muted,fontFamily:T.sans,fontSize:8,letterSpacing:"0.18em",textTransform:"uppercase",marginBottom:6}}>{item.l}</div>
+                <div style={{color:item.c,fontSize:20,fontWeight:400,fontFamily:T.mono}}>{item.v}</div>
+              </LuxCard>
+            ))
+          )}
         </div>
       </div>
     </div>
