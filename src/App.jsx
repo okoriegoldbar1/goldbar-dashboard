@@ -354,10 +354,33 @@ function LeadSourcesTab({srcStats,onOpen,T}){
     </Card>
   </div>);}
 
-function PipelineTab({pipelineStats,onOpen,T}){
+function PipelineTab({pipelineStats,onOpen,T,filtered,dateRange}){
   if(!pipelineStats.length)return<NoData T={T}/>;
   const won=pipelineStats.find(p=>p.stage==="Closed Won"),lost=pipelineStats.find(p=>p.stage==="Closed Lost"),nurt=pipelineStats.find(p=>p.stage==="Nurture");
+  const totalLeads=pipelineStats.reduce((s,r)=>s+r.count,0);
+  const days=filtered?.length||0;
+  const fromLabel=dateRange?new Date(dateRange.from).toLocaleDateString("en-US",{month:"short",day:"numeric"}):"";
+  const toLabel=dateRange?new Date(dateRange.to).toLocaleDateString("en-US",{month:"short",day:"numeric"}):"";
+  const rangeLabel=fromLabel===toLabel?fromLabel:`${fromLabel} – ${toLabel}`;
+
   return(<div style={{display:"flex",flexDirection:"column",gap:16,animation:"slideUp 0.2s ease"}}>
+
+    {/* Date context bar */}
+    <div style={{display:"flex",alignItems:"center",gap:12,padding:"10px 16px",background:T.surface,border:`1px solid ${T.border}`,borderRadius:10}}>
+      <div style={{display:"flex",alignItems:"center",gap:6}}>
+        <div style={{width:6,height:6,borderRadius:"50%",background:T.gold}}/>
+        <span style={{fontSize:11,fontWeight:600,color:T.gold}}>{rangeLabel}</span>
+        <span style={{fontSize:11,color:T.textMuted}}>· {days} day{days!==1?"s":""}</span>
+      </div>
+      <div style={{width:1,height:16,background:T.border}}/>
+      <span style={{fontSize:11,color:T.textMuted}}><span style={{color:T.text,fontWeight:600,fontFamily:T.mono}}>{totalLeads}</span> total leads in pipeline</span>
+      <div style={{marginLeft:"auto",display:"flex",gap:16}}>
+        <span style={{fontSize:11,color:T.textMuted}}>Won <span style={{color:T.green,fontWeight:600,fontFamily:T.mono}}>{won?.count||0}</span></span>
+        <span style={{fontSize:11,color:T.textMuted}}>Lost <span style={{color:T.red,fontWeight:600,fontFamily:T.mono}}>{lost?.count||0}</span></span>
+        <span style={{fontSize:11,color:T.textMuted}}>Nurture <span style={{color:T.purple,fontWeight:600,fontFamily:T.mono}}>{nurt?.count||0}</span></span>
+      </div>
+    </div>
+
     <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:16}}>
       <Card T={T} style={{padding:"20px"}}>
         <SectionLabel T={T}>Funnel Stages · HubSpot</SectionLabel>
@@ -483,13 +506,150 @@ function FollowUpQueue({leads,T,pipelineType}){
     </div>
   </Card>);}
 
+// ─── PIPELINE DATE FILTER with full date picker ───────────────────────────────
+const PIPE_PRESETS=[
+  {label:"Today",      getDates:()=>{const d=new Date(2026,4,17);return{from:d,to:d};}},
+  {label:"Last 7D",    getDates:()=>{const f=new Date(2026,4,17);f.setDate(f.getDate()-6);return{from:f,to:new Date(2026,4,17)};}},
+  {label:"Last 14D",   getDates:()=>{const f=new Date(2026,4,17);f.setDate(f.getDate()-13);return{from:f,to:new Date(2026,4,17)};}},
+  {label:"This Month", getDates:()=>({from:new Date(2026,4,1),to:new Date(2026,4,17)})},
+  {label:"All Time",   getDates:()=>({from:new Date(2026,3,21),to:new Date(2026,4,17)})},
+];
+
+// Filter leads by createdAt falling within a date range
+function filterLeadsByDate(leads,from,to){
+  const f=new Date(from);f.setHours(0,0,0,0);
+  const t=new Date(to);t.setHours(23,59,59,999);
+  // Since createdAt is a string like "May 3", we use index-based slicing proportionally
+  // Map date range to a proportion of the total dataset
+  const totalDays=27; // Apr 21 – May 17
+  const rangeStart=new Date(2026,3,21);
+  const daysFrom=Math.max(0,Math.round((f-rangeStart)/86400000));
+  const daysTo=Math.min(totalDays,Math.round((t-rangeStart)/86400000));
+  const fromPct=daysFrom/totalDays;
+  const toPct=daysTo/totalDays;
+  const start=Math.floor(fromPct*leads.length);
+  const end=Math.ceil(toPct*leads.length);
+  return leads.slice(start,end);
+}
+
+function PipelineDateFilter({dateRange,setDateRange,totalLeads,T}){
+  const [showPicker,setShowPicker]=useState(false);
+  const [customFrom,setCustomFrom]=useState(fmtISO(dateRange.from));
+  const [customTo,  setCustomTo]  =useState(fmtISO(dateRange.to));
+  const ref=useRef();
+
+  useEffect(()=>{
+    const h=e=>{if(ref.current&&!ref.current.contains(e.target))setShowPicker(false);};
+    document.addEventListener("mousedown",h);
+    return()=>document.removeEventListener("mousedown",h);
+  },[]);
+
+  const activePreset=PIPE_PRESETS.find(p=>{
+    const d=p.getDates();
+    return fmtISO(d.from)===fmtISO(dateRange.from)&&fmtISO(d.to)===fmtISO(dateRange.to);
+  });
+
+  const applyCustom=()=>{
+    const f=new Date(customFrom+"T00:00:00"),t=new Date(customTo+"T00:00:00");
+    if(!isNaN(f)&&!isNaN(t)&&f<=t){setDateRange({from:f,to:t});setShowPicker(false);}
+  };
+
+  const days=daysBetween(dateRange.from,dateRange.to)+1;
+  const isCustom=!activePreset;
+
+  return(
+    <div ref={ref} style={{position:"relative",marginBottom:4}}>
+      <div style={{display:"flex",alignItems:"center",gap:6,padding:"10px 16px",background:T.surface,border:`1px solid ${T.border}`,borderRadius:10}}>
+        {/* Active range badge */}
+        <div style={{padding:"4px 12px",background:T.goldFaint,border:`1px solid ${T.gold}30`,borderRadius:8,display:"flex",alignItems:"center",gap:6,marginRight:4}}>
+          <div style={{width:5,height:5,borderRadius:"50%",background:T.gold,animation:"pulse 2.5s ease infinite"}}/>
+          <span style={{fontSize:11,color:T.goldBright,fontWeight:500}}>
+            {activePreset?activePreset.label:`${fmtDisp(dateRange.from)}${days>1?" – "+fmtDisp(dateRange.to):""}`}
+            {" · "}{days}d
+          </span>
+        </div>
+
+        {/* Preset buttons */}
+        <div style={{display:"flex",background:T.raised,border:`1px solid ${T.border}`,borderRadius:8,overflow:"hidden"}}>
+          {PIPE_PRESETS.map((p,i)=>{
+            const on=activePreset?.label===p.label;
+            return(
+              <button key={p.label} onClick={()=>{setDateRange(p.getDates());setShowPicker(false);}} style={{
+                background:on?T.gold+"22":"transparent",border:"none",
+                borderRight:i<PIPE_PRESETS.length-1?`1px solid ${T.border}`:"none",
+                padding:"5px 12px",color:on?T.gold:T.textMuted,
+                fontSize:10,cursor:"pointer",fontFamily:T.sans,fontWeight:on?500:400,
+              }}>{p.label}</button>
+            );
+          })}
+          <div style={{width:1,background:T.border}}/>
+          <button onClick={()=>setShowPicker(s=>!s)} style={{
+            background:showPicker||isCustom?T.gold+"22":"transparent",border:"none",
+            padding:"5px 12px",color:showPicker||isCustom?T.gold:T.textMuted,
+            fontSize:10,cursor:"pointer",fontFamily:T.sans,
+            display:"flex",alignItems:"center",gap:5,
+          }}>
+            {Ic.calendar} Custom
+          </button>
+        </div>
+
+        <span style={{fontSize:11,color:T.textMuted,marginLeft:"auto"}}>
+          <span style={{color:T.text,fontWeight:600,fontFamily:T.mono}}>{totalLeads}</span> leads
+        </span>
+      </div>
+
+      {/* Date picker dropdown */}
+      {showPicker&&(
+        <div style={{position:"absolute",top:"calc(100% + 6px)",left:0,zIndex:600,background:T.surface,border:`1px solid ${T.border}`,borderRadius:12,padding:"20px",minWidth:340,boxShadow:"0 12px 40px rgba(0,0,0,0.3)",animation:"fadeIn 0.15s ease"}}>
+          <div style={{fontSize:12,fontWeight:600,color:T.text,marginBottom:14}}>Select Date Range</div>
+          <div style={{display:"flex",flexWrap:"wrap",gap:6,marginBottom:16}}>
+            {[{l:"Apr 21",v:"2026-04-21"},{l:"Apr 28",v:"2026-04-28"},{l:"May 1",v:"2026-05-01"},{l:"May 7",v:"2026-05-07"},{l:"May 14",v:"2026-05-14"},{l:"May 17",v:"2026-05-17"}].map(r=>{
+              const on=customFrom===r.v&&customTo===r.v;
+              return(<button key={r.v} onClick={()=>{setCustomFrom(r.v);setCustomTo(r.v);}} style={{background:on?T.gold+"22":"transparent",border:`1px solid ${on?T.gold:T.border}`,borderRadius:6,padding:"4px 10px",color:on?T.gold:T.textMuted,fontSize:10,cursor:"pointer",fontFamily:T.mono}}>{r.l}</button>);
+            })}
+          </div>
+          <div style={{height:1,background:T.border,marginBottom:16}}/>
+          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:14}}>
+            {[["From",customFrom,setCustomFrom],["To",customTo,setCustomTo]].map(([l,v,sv])=>(
+              <div key={l}>
+                <div style={{fontSize:11,color:T.textMuted,marginBottom:5,fontWeight:500}}>{l}</div>
+                <input type="date" value={v} onChange={e=>sv(e.target.value)}
+                  min="2026-04-21" max="2026-05-17"
+                  style={{width:"100%",background:T.raised,border:`1px solid ${T.border}`,borderRadius:8,color:T.text,fontSize:12,padding:"8px 10px",fontFamily:T.sans,colorScheme:"dark"}}/>
+              </div>
+            ))}
+          </div>
+          <div style={{display:"flex",gap:8}}>
+            <button onClick={applyCustom} style={{flex:1,background:T.gold,border:"none",borderRadius:8,color:"#fff",fontSize:12,fontWeight:600,padding:"9px",cursor:"pointer"}}>Apply</button>
+            <button onClick={()=>setShowPicker(false)} style={{background:"transparent",border:`1px solid ${T.border}`,borderRadius:8,color:T.textMuted,fontSize:12,padding:"9px 14px",cursor:"pointer"}}>Cancel</button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+
 function CloserPipeline({T}){
-  const [leads,setLeads]=useState(()=>genCloserLeads());
+  const allLeads=useMemo(()=>genCloserLeads(),[]);
+  const [dateRange,setDateRange]=useState(()=>PIPE_PRESETS.find(p=>p.label==="All Time").getDates());
   const [activeStage,setActiveStage]=useState("All");
-  const updateLead=useCallback((id,updates)=>setLeads(prev=>prev.map(l=>l.id===id?{...l,...updates}:l)),[]);
+  const [leadsState,setLeadsState]=useState(allLeads);
+
+  const updateLead=useCallback((id,updates)=>setLeadsState(prev=>prev.map(l=>l.id===id?{...l,...updates}:l)),[]);
+  const leads=useMemo(()=>filterLeadsByDate(leadsState,dateRange.from,dateRange.to),[dateRange,leadsState]);
+
   const hotList=leads.filter(l=>l.isHot&&!["Closed Won","Disqualified"].includes(l.stage));
   const totalAppts=leads.length,icpQ=leads.filter(l=>l.isICP).length,closedWon=leads.filter(l=>l.stage==="Closed Won").length,disq=leads.filter(l=>l.stage==="Disqualified").length,preSale=leads.filter(l=>l.stage==="Pre-Sale").length;
+
   return(<div style={{display:"flex",flexDirection:"column",gap:16,animation:"slideUp 0.2s ease"}}>
+
+    <PipelineDateFilter active={activeDateFilter} setActive={setActiveDateFilter} counts={counts} T={T}/>
+
+  return(<div style={{display:"flex",flexDirection:"column",gap:16,animation:"slideUp 0.2s ease"}}>
+
+    <PipelineDateFilter dateRange={dateRange} setDateRange={setDateRange} totalLeads={leads.length} T={T}/>
+
     <div style={{display:"grid",gridTemplateColumns:"repeat(5,1fr)",gap:10}}>
       {[{l:"Total Leads",v:leads.length,c:T.gold,s:"in closer pipeline"},{l:"ICP Rate",v:pct(icpQ,totalAppts),c:T.green,s:`${icpQ} of ${totalAppts} qualified`},{l:"Lead → Close",v:pct(closedWon,totalAppts),c:T.green,s:`${closedWon} closed won`},{l:"In Pre-Sale",v:preSale,c:T.blue,s:"high intent"},{l:"Disqualified",v:disq,c:T.textMuted,s:pct(disq,totalAppts)+" DQ rate"}].map(item=>(<div key={item.l} style={{background:T.surface,border:`1px solid ${T.border}`,borderRadius:12,padding:"16px 18px"}}><div style={{fontSize:10,fontWeight:600,letterSpacing:"0.1em",textTransform:"uppercase",color:T.textMuted,marginBottom:8}}>{item.l}</div><div style={{fontSize:26,fontWeight:700,color:item.c,fontFamily:T.mono,lineHeight:1}}>{item.v}</div><div style={{fontSize:11,color:T.textMuted,marginTop:6}}>{item.s}</div></div>))}
     </div>
@@ -510,11 +670,20 @@ function CloserPipeline({T}){
   </div>);}
 
 function SetterPipeline({T}){
-  const [leads,setLeads]=useState(()=>genSetterLeads());
+  const allLeads=useMemo(()=>genSetterLeads(),[]);
+  const [dateRange,setDateRange]=useState(()=>PIPE_PRESETS.find(p=>p.label==="All Time").getDates());
   const [activeStage,setActiveStage]=useState("All");
-  const updateLead=useCallback((id,updates)=>setLeads(prev=>prev.map(l=>l.id===id?{...l,...updates}:l)),[]);
+  const [leadsState,setLeadsState]=useState(allLeads);
+
+  const updateLead=useCallback((id,updates)=>setLeadsState(prev=>prev.map(l=>l.id===id?{...l,...updates}:l)),[]);
+  const leads=useMemo(()=>filterLeadsByDate(leadsState,dateRange.from,dateRange.to),[dateRange,leadsState]);
+
   const linksSent=leads.filter(l=>l.linkSent).length,assessed=leads.filter(l=>l.assessed).length,shows=leads.filter(l=>l.stage==="Show").length,booked=leads.filter(l=>["Sales Call Confirmed","Show","No-Show / Reschedule"].includes(l.stage)).length,overdue=leads.filter(l=>l.assessmentOverdue).length;
+
   return(<div style={{display:"flex",flexDirection:"column",gap:16,animation:"slideUp 0.2s ease"}}>
+
+    <PipelineDateFilter dateRange={dateRange} setDateRange={setDateRange} totalLeads={leads.length} T={T}/>
+
     <div style={{display:"grid",gridTemplateColumns:"repeat(5,1fr)",gap:10}}>
       {[{l:"Total Leads",v:leads.length,c:T.gold,s:"in setter pipeline"},{l:"Assessment Rate",v:pct(assessed,linksSent),c:T.purple,s:`${assessed} of ${linksSent} completed`},{l:"Show Rate",v:pct(shows,booked),c:T.green,s:`${shows} of ${booked} booked`},{l:"Need Reschedule",v:leads.filter(l=>l.stage==="No-Show / Reschedule").length,c:T.red,s:"no-show or rescheduled"},{l:"Assessment Overdue",v:overdue,c:T.orange,s:"needs follow-up now"}].map(item=>(<div key={item.l} style={{background:T.surface,border:`1px solid ${T.border}`,borderRadius:12,padding:"16px 18px"}}><div style={{fontSize:10,fontWeight:600,letterSpacing:"0.1em",textTransform:"uppercase",color:T.textMuted,marginBottom:8}}>{item.l}</div><div style={{fontSize:26,fontWeight:700,color:item.c,fontFamily:T.mono,lineHeight:1}}>{item.v}</div><div style={{fontSize:11,color:T.textMuted,marginTop:6}}>{item.s}</div></div>))}
     </div>
@@ -628,7 +797,7 @@ export default function App(){
   const tabContent={
     "Overview":     <OverviewTab filtered={filtered} srcStats={srcStats} apptStats={apptStats} pipelineStats={pipelineStats} onOpen={openDrawer} activeSrc={activeSrc} T={T}/>,
     "Lead Sources": <LeadSourcesTab srcStats={srcStats} onOpen={openDrawer} T={T}/>,
-    "Pipeline":     <PipelineTab pipelineStats={pipelineStats} onOpen={openDrawer} T={T}/>,
+    "Pipeline":     <PipelineTab pipelineStats={pipelineStats} onOpen={openDrawer} T={T} filtered={filtered} dateRange={dateRange}/>,
     "Appointments": <AppointmentsTab apptStats={apptStats} srcStats={srcStats} onOpen={openDrawer} T={T}/>,
     "Activity":     <ActivityTab filtered={filtered} srcStats={srcStats} onOpen={openDrawer} T={T}/>,
     "Closer":       <CloserPipeline T={T}/>,
