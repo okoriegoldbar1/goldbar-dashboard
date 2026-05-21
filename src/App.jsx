@@ -452,15 +452,21 @@ function ActivityTab({filtered,srcStats,onOpen,T}){
   </div>);}
 
 // ─── CLOSER PIPELINE TAB ─────────────────────────────────────────────────────
-function LeadCard({lead,stageColor,T,onUpdate,pipelineType}){
+function LeadCard({lead,stageColor,T,onUpdate,pipelineType,draggable=false,onDragStart}){
   const [expanded,setExpanded]=useState(false);
   const [note,setNote]=useState(lead.note||"");
   const [editingNote,setEditingNote]=useState(false);
   const fuc=followUpColor(lead.followUp,T);
   const ful=followUpLabel(lead.followUp);
-  return(<div className="lead-card" style={{background:T.raised,border:`1px solid ${T.border}`,borderRadius:10,marginBottom:8,overflow:"hidden"}}>
+  return(<div
+    className="lead-card"
+    draggable={draggable}
+    onDragStart={onDragStart?e=>{e.dataTransfer.setData("leadId",lead.id);e.dataTransfer.effectAllowed="move";if(onDragStart)onDragStart(lead);}:undefined}
+    style={{background:T.raised,border:`1px solid ${T.border}`,borderRadius:10,marginBottom:8,overflow:"hidden",cursor:draggable?"grab":"default",opacity:1}}
+  >
     <div style={{height:2,background:stageColor}}/>
     <div style={{padding:"12px 14px"}}>
+      {draggable&&<div style={{display:"flex",justifyContent:"center",marginBottom:6}}><div style={{display:"flex",gap:2}}>{[0,1,2,3,4,5].map(i=><div key={i} style={{width:3,height:3,borderRadius:"50%",background:T.textFaint}}/>)}</div></div>}
       <div style={{display:"flex",alignItems:"flex-start",justifyContent:"space-between",marginBottom:8}}>
         <div style={{flex:1,minWidth:0}}>
           <div style={{display:"flex",alignItems:"center",gap:6,marginBottom:3}}>{lead.isHot&&<span style={{color:T.red,display:"flex"}}>{Ic.fire}</span>}<span style={{fontSize:13,fontWeight:600,color:T.text,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{lead.name}</span></div>
@@ -487,7 +493,98 @@ function LeadCard({lead,stageColor,T,onUpdate,pipelineType}){
       {pipelineType==="closer"&&lead.stage==="Disqualified"&&<div><span style={{fontSize:10,fontWeight:600,letterSpacing:"0.08em",textTransform:"uppercase",color:T.textMuted}}>Disqualification Reason</span><div style={{marginTop:5}}><Pill label={lead.disqReason||"Not specified"} color={T.red}/></div></div>}
       {pipelineType==="setter"&&<div style={{display:"flex",gap:10}}><Pill label={lead.linkSent?"Link Sent ✓":"Link Not Sent"} color={lead.linkSent?T.green:T.textMuted}/><Pill label={lead.assessed?"Assessed ✓":"Not Assessed"} color={lead.assessed?T.green:lead.assessmentOverdue?T.red:T.textMuted}/></div>}
     </div>)}
-  </div>);}
+  </div>);
+}
+
+// ─── HOT HIT LIST with drag-and-drop ─────────────────────────────────────────
+function HotHitList({hotLeads,allLeads,onAdd,onRemove,T}){
+  const [isDragOver,setIsDragOver]=useState(false);
+
+  const handleDrop=e=>{
+    e.preventDefault();
+    setIsDragOver(false);
+    const id=e.dataTransfer.getData("leadId");
+    if(id&&!hotLeads.find(l=>l.id===id)){
+      const lead=allLeads.find(l=>l.id===id);
+      if(lead)onAdd(lead);
+    }
+  };
+
+  return(
+    <div style={{background:`linear-gradient(135deg,${T.red}10,${T.orange}06)`,border:`1px solid ${isDragOver?T.red:T.red+"30"}`,borderRadius:12,padding:"14px 18px",transition:"border-color 0.15s"}}
+      onDragOver={e=>{e.preventDefault();setIsDragOver(true);}}
+      onDragLeave={()=>setIsDragOver(false)}
+      onDrop={handleDrop}
+    >
+      {/* Header */}
+      <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:12}}>
+        <span style={{color:T.red,display:"flex"}}>{Ic.fire}</span>
+        <span style={{fontSize:14,fontWeight:700,color:T.text}}>Hot Hit List</span>
+        <span style={{background:T.red+"20",border:`1px solid ${T.red}40`,borderRadius:6,padding:"1px 8px",fontSize:11,fontWeight:600,color:T.red,fontFamily:T.mono}}>{hotLeads.length}</span>
+        <span style={{fontSize:11,color:T.textMuted,marginLeft:4}}>Priority contacts for today</span>
+        <div style={{marginLeft:"auto",display:"flex",alignItems:"center",gap:6,padding:"4px 10px",background:isDragOver?T.red+"20":T.raised,border:`1px dashed ${isDragOver?T.red:T.textFaint}`,borderRadius:7,transition:"all 0.15s"}}>
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke={isDragOver?T.red:T.textMuted} strokeWidth="2" strokeLinecap="round"><path d="M12 5v14M5 12l7-7 7 7"/></svg>
+          <span style={{fontSize:10,color:isDragOver?T.red:T.textMuted,fontWeight:500}}>{isDragOver?"Drop to add":"Drag leads here"}</span>
+        </div>
+      </div>
+
+      {/* Empty state */}
+      {hotLeads.length===0&&(
+        <div style={{padding:"20px",textAlign:"center",border:`1px dashed ${T.textFaint}`,borderRadius:8}}>
+          <div style={{fontSize:12,color:T.textMuted,marginBottom:4}}>No hot leads yet</div>
+          <div style={{fontSize:11,color:T.textFaint}}>Drag any lead card from the pipeline below to add it here</div>
+        </div>
+      )}
+
+      {/* Cards grid */}
+      {hotLeads.length>0&&(
+        <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(220px,1fr))",gap:10}}>
+          {hotLeads.map(lead=>{
+            const fuc=followUpColor(lead.followUp,T);
+            const stageColor=CLOSER_STAGE_COLORS[lead.stage]||T.gold;
+            return(
+              <div key={lead.id} style={{background:T.surface,border:`1px solid ${T.red}25`,borderRadius:10,overflow:"hidden",position:"relative"}}>
+                <div style={{height:2,background:stageColor}}/>
+                <div style={{padding:"10px 12px"}}>
+                  {/* Remove button */}
+                  <button onClick={()=>onRemove(lead.id)} style={{position:"absolute",top:8,right:8,background:"transparent",border:"none",cursor:"pointer",color:T.textFaint,padding:2,borderRadius:4,transition:"all 0.15s",lineHeight:1,display:"flex",alignItems:"center"}}
+                    onMouseEnter={e=>e.currentTarget.style.color=T.red}
+                    onMouseLeave={e=>e.currentTarget.style.color=T.textFaint}
+                    title="Remove from Hot List"
+                  >
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                  </button>
+
+                  <div style={{display:"flex",alignItems:"center",gap:6,marginBottom:6,paddingRight:18}}>
+                    <span style={{color:T.red,display:"flex",flexShrink:0}}>{Ic.fire}</span>
+                    <span style={{fontSize:12,fontWeight:600,color:T.text,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{lead.name}</span>
+                  </div>
+
+                  <div style={{display:"flex",gap:5,flexWrap:"wrap",marginBottom:8}}>
+                    <Pill label={lead.stage} color={stageColor}/>
+                    {lead.isICP&&<Pill label="ICP ✓" color={T.green}/>}
+                  </div>
+
+                  <div style={{display:"flex",alignItems:"center",gap:6,marginBottom:6}}>
+                    <div style={{width:5,height:5,borderRadius:"50%",background:fuc,flexShrink:0}}/>
+                    <span style={{fontSize:10,color:fuc,fontWeight:500}}>{followUpLabel(lead.followUp)}</span>
+                    <span style={{fontSize:10,color:T.textMuted,marginLeft:"auto"}}>{lead.owner}</span>
+                  </div>
+
+                  {lead.note&&(
+                    <div style={{fontSize:10,color:T.textMuted,background:T.raised,borderRadius:6,padding:"5px 7px",fontStyle:"italic",overflow:"hidden",display:"-webkit-box",WebkitLineClamp:2,WebkitBoxOrient:"vertical"}}>
+                      "{lead.note}"
+                    </div>
+                  )}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
 
 function FollowUpQueue({leads,T,pipelineType}){
   const today=new Date(2026,4,17);today.setHours(0,0,0,0);
@@ -635,11 +732,18 @@ function CloserPipeline({T}){
   const [dateRange,setDateRange]=useState(()=>PIPE_PRESETS.find(p=>p.label==="All Time").getDates());
   const [activeStage,setActiveStage]=useState("All");
   const [leadsState,setLeadsState]=useState(allLeads);
+  const [hotLeads,setHotLeads]=useState(()=>allLeads.filter(l=>l.isHot&&!["Closed Won","Disqualified"].includes(l.stage)).slice(0,4));
 
   const updateLead=useCallback((id,updates)=>setLeadsState(prev=>prev.map(l=>l.id===id?{...l,...updates}:l)),[]);
   const leads=useMemo(()=>filterLeadsByDate(leadsState,dateRange.from,dateRange.to),[dateRange,leadsState]);
 
-  const hotList=leads.filter(l=>l.isHot&&!["Closed Won","Disqualified"].includes(l.stage));
+  const addToHot=useCallback(lead=>{
+    setHotLeads(prev=>prev.find(l=>l.id===lead.id)?prev:[...prev,lead]);
+  },[]);
+  const removeFromHot=useCallback(id=>{
+    setHotLeads(prev=>prev.filter(l=>l.id!==id));
+  },[]);
+
   const totalAppts=leads.length,icpQ=leads.filter(l=>l.isICP).length,closedWon=leads.filter(l=>l.stage==="Closed Won").length,disq=leads.filter(l=>l.stage==="Disqualified").length,preSale=leads.filter(l=>l.stage==="Pre-Sale").length;
 
   return(<div style={{display:"flex",flexDirection:"column",gap:16,animation:"slideUp 0.2s ease"}}>
@@ -653,17 +757,17 @@ function CloserPipeline({T}){
     <div style={{display:"grid",gridTemplateColumns:"repeat(5,1fr)",gap:10}}>
       {[{l:"Total Leads",v:leads.length,c:T.gold,s:"in closer pipeline"},{l:"ICP Rate",v:pct(icpQ,totalAppts),c:T.green,s:`${icpQ} of ${totalAppts} qualified`},{l:"Lead → Close",v:pct(closedWon,totalAppts),c:T.green,s:`${closedWon} closed won`},{l:"In Pre-Sale",v:preSale,c:T.blue,s:"high intent"},{l:"Disqualified",v:disq,c:T.textMuted,s:pct(disq,totalAppts)+" DQ rate"}].map(item=>(<div key={item.l} style={{background:T.surface,border:`1px solid ${T.border}`,borderRadius:12,padding:"16px 18px"}}><div style={{fontSize:10,fontWeight:600,letterSpacing:"0.1em",textTransform:"uppercase",color:T.textMuted,marginBottom:8}}>{item.l}</div><div style={{fontSize:26,fontWeight:700,color:item.c,fontFamily:T.mono,lineHeight:1}}>{item.v}</div><div style={{fontSize:11,color:T.textMuted,marginTop:6}}>{item.s}</div></div>))}
     </div>
-    {hotList.length>0&&(<div style={{background:`linear-gradient(135deg,${T.red}12,${T.orange}08)`,border:`1px solid ${T.red}30`,borderRadius:12,padding:"16px 20px"}}>
-      <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:12}}>{Ic.fire}<span style={{fontSize:14,fontWeight:700,color:T.text}}>Hot Hit List</span><span style={{background:T.red+"20",border:`1px solid ${T.red}40`,borderRadius:6,padding:"1px 8px",fontSize:11,fontWeight:600,color:T.red,fontFamily:T.mono}}>{hotList.length}</span><span style={{fontSize:11,color:T.textMuted,marginLeft:4}}>Priority contacts for today</span></div>
-      <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(220px,1fr))",gap:8}}>{hotList.map(lead=>{const fuc=followUpColor(lead.followUp,T);return(<div key={lead.id} className="hot-card" style={{background:T.surface,border:`1px solid ${T.red}25`,borderRadius:8,padding:"10px 12px"}}><div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:6}}><span style={{fontSize:12,fontWeight:600,color:T.text}}>{lead.name}</span>{Ic.fire}</div><Pill label={lead.stage} color={CLOSER_STAGE_COLORS[lead.stage]}/><div style={{marginTop:8,display:"flex",alignItems:"center",gap:6}}><div style={{width:6,height:6,borderRadius:"50%",background:fuc}}/><span style={{fontSize:10,color:fuc,fontWeight:500}}>{followUpLabel(lead.followUp)}</span><span style={{fontSize:10,color:T.textMuted,marginLeft:"auto"}}>{lead.owner}</span></div>{lead.note&&<div style={{fontSize:10,color:T.textMuted,marginTop:6,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",fontStyle:"italic"}}>"{lead.note.slice(0,60)}…"</div>}</div>);})}</div>
-    </div>)}
+
+    <HotHitList hotLeads={hotLeads} allLeads={leads} onAdd={addToHot} onRemove={removeFromHot} T={T}/>
+
     <div style={{display:"flex",gap:6,flexWrap:"wrap"}}>
       {["All",...CLOSER_STAGES].map(stage=>{const on=activeStage===stage;const count=stage==="All"?leads.length:leads.filter(l=>l.stage===stage).length;const color=CLOSER_STAGE_COLORS[stage]||T.gold;return(<button key={stage} onClick={()=>setActiveStage(stage)} style={{background:on?(stage==="All"?T.gold+"20":color+"20"):"transparent",border:`1px solid ${on?(stage==="All"?T.gold:color):T.border}`,borderRadius:8,padding:"5px 12px",cursor:"pointer",color:on?(stage==="All"?T.gold:color):T.textMuted,fontSize:11,fontWeight:on?500:400,display:"flex",alignItems:"center",gap:6}}>{stage}<span style={{background:"rgba(0,0,0,0.15)",borderRadius:4,padding:"0 5px",fontFamily:T.mono,fontSize:10}}>{count}</span></button>);})}
     </div>
+
     <div style={{display:"grid",gridTemplateColumns:"repeat(6,1fr)",gap:10,alignItems:"start"}}>
       {CLOSER_STAGES.map(stage=>{if(activeStage!=="All"&&activeStage!==stage)return null;const stageLeads=leads.filter(l=>l.stage===stage);const color=CLOSER_STAGE_COLORS[stage];return(<div key={stage} style={{background:T.raised,border:`1px solid ${T.border}`,borderRadius:10,padding:"12px 10px",minHeight:120}}>
         <div style={{display:"flex",alignItems:"center",gap:6,marginBottom:10,padding:"0 2px"}}><div style={{width:8,height:8,borderRadius:"50%",background:color}}/><span style={{fontSize:11,fontWeight:600,color:T.textSub,flex:1,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{stage}</span><span style={{fontSize:11,color:T.textMuted,fontFamily:T.mono,flexShrink:0}}>{stageLeads.length}</span></div>
-        {stageLeads.map(lead=><LeadCard key={lead.id} lead={lead} stageColor={color} T={T} onUpdate={updateLead} pipelineType="closer"/>)}
+        {stageLeads.map(lead=><LeadCard key={lead.id} lead={lead} stageColor={color} T={T} onUpdate={updateLead} pipelineType="closer" draggable={true} onDragStart={()=>{}}/>)}
       </div>);})}
     </div>
     <FollowUpQueue leads={leads} T={T} pipelineType="closer"/>
