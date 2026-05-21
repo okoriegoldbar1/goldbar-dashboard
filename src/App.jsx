@@ -2,64 +2,71 @@ import { useState, useMemo, useRef, useEffect, useCallback } from "react";
 import { AreaChart, Area, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell, PieChart, Pie } from "recharts";
 
 // ─── THEME ────────────────────────────────────────────────────────────────────
-const LIGHT={bg:"#F5F0E8",sidebar:"#EDE8DF",sidebarBorder:"rgba(180,160,120,0.25)",surface:"#FFFFFF",raised:"#FAF8F4",border:"rgba(180,155,100,0.18)",borderMid:"rgba(180,155,100,0.32)",gold:"#C8922A",goldBright:"#B8800A",goldDim:"#9A6E1C",goldFaint:"rgba(200,146,42,0.08)",text:"#1A1610",textSub:"#5A5040",textMuted:"#9A9080",textFaint:"#C8C0B0",green:"#2A9D5C",red:"#D04040",orange:"#D06820",purple:"#6B5FC8",blue:"#3A7AC8",navActive:"#EDE3D0",navHover:"#F0EBE0",headerBg:"#FFFFFF",mono:"'DM Mono','Courier New',monospace",sans:"'Inter',system-ui,sans-serif"};
+const LIGHT={bg:"#F5F0E8",sidebar:"#EFEBE2",sidebarBorder:"rgba(0,0,0,0.06)",surface:"#FFFFFF",raised:"#F5F0E8",border:"rgba(0,0,0,0.07)",borderMid:"rgba(0,0,0,0.12)",gold:"#9A6E20",goldBright:"#B88028",goldDim:"#7A5818",goldFaint:"rgba(154,110,32,0.08)",text:"#1A1508",textSub:"#4A4030",textMuted:"#8A8070",textFaint:"#C5BFB0",green:"#1E8A50",red:"#C03838",orange:"#B86020",purple:"#5848B0",blue:"#2868B0",navActive:"#E8E0D0",navHover:"#EEE8DC",headerBg:"#F5F0E8",btn:"#E5CC8C",btnText:"#2A1C08",mono:"'DM Mono','Courier New',monospace",sans:"'Inter',system-ui,sans-serif"};
 const DARK={
-  bg:            "#1A1A1A",
-  sidebar:       "#111111",
-  sidebarBorder: "rgba(255,255,255,0.06)",
-  surface:       "#222222",
-  raised:        "#2A2A2A",
-  border:        "rgba(255,255,255,0.08)",
-  borderMid:     "rgba(255,255,255,0.14)",
-  gold:          "#C8922A",
-  goldBright:    "#E8B84B",
-  goldDim:       "#9A6E1C",
-  goldFaint:     "rgba(200,146,42,0.10)",
-  text:          "#EDEDED",
-  textSub:       "#B0B0B0",
-  textMuted:     "#686868",
-  textFaint:     "#333333",
-  green:         "#4CAF7A",
-  red:           "#E05252",
-  orange:        "#E08030",
-  purple:        "#8B7FD4",
-  blue:          "#5A9FE8",
-  navActive:     "#2C2C2C",
-  navHover:      "#202020",
-  headerBg:      "#1A1A1A",
+  bg:            "#0A0A0C",
+  sidebar:       "#0A0A0C",
+  sidebarBorder: "rgba(255,255,255,0.05)",
+  surface:       "#161519",
+  raised:        "#1C1B1F",
+  border:        "rgba(255,255,255,0.06)",
+  borderMid:     "rgba(255,255,255,0.10)",
+  gold:          "#C4903C",
+  goldBright:    "#D4A050",
+  goldDim:       "#9A6E20",
+  goldFaint:     "rgba(196,144,60,0.08)",
+  text:          "#F3EFE6",
+  textSub:       "#E6E2D6",
+  textMuted:     "#AAA7A0",
+  textFaint:     "#2E2C28",
+  sectionLabel:  "#D8D3BF",
+  green:         "#3A8A60",
+  red:           "#C05050",
+  orange:        "#B87030",
+  purple:        "#7060C0",
+  blue:          "#4878C0",
+  navActive:     "#171312",
+  navHover:      "#141210",
+  headerBg:      "#0A0A0C",
+  btn:           "#E5CC8C",
+  btnText:       "#2A1C08",
   mono:          "'DM Mono','Courier New',monospace",
   sans:          "'Inter',system-ui,sans-serif",
 };
 
 const makeCSS=(T)=>`
-  @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:ital@1&family=DM+Mono:wght@300;400;500&family=Inter:wght@300;400;500;600&display=swap');
+  @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@1,400;1,500&family=DM+Mono:wght@300;400;500&family=Inter:wght@300;400;500;600&display=swap');
   *{box-sizing:border-box;margin:0;padding:0;}
   html,body,#root{background:${T.bg}!important;min-height:100vh;}
   body{font-family:${T.sans};background:${T.bg}!important;color:${T.text};}
   @keyframes fadeIn{from{opacity:0}to{opacity:1}}
-  @keyframes slideUp{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+  @keyframes slideUp{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}
   @keyframes slideInRight{from{opacity:0;transform:translateX(20px)}to{opacity:1;transform:translateX(0)}}
-  @keyframes pulse{0%,100%{opacity:0.5}50%{opacity:1}}
-  ::-webkit-scrollbar{width:4px;height:4px;}
+  @keyframes pulse{0%,100%{opacity:0.4}50%{opacity:1}}
+  ::-webkit-scrollbar{width:3px;height:3px;}
   ::-webkit-scrollbar-track{background:transparent;}
-  ::-webkit-scrollbar-thumb{background:${T.gold}40;border-radius:4px;}
-  .nav-item{transition:all 0.15s ease;border-radius:8px;cursor:pointer;}
+  ::-webkit-scrollbar-thumb{background:${T.textFaint};border-radius:3px;}
+  .nav-item{transition:background 0.12s ease;border-radius:6px;cursor:pointer;}
   .nav-item:hover{background:${T.navHover};}
-  .nav-item.active{background:${T.navActive};border:1px solid rgba(255,255,255,0.08)!important;}
-  .card{transition:box-shadow 0.2s ease,transform 0.2s ease;}
-  .kpi-card{transition:all 0.2s ease;cursor:pointer;}
-  .kpi-card:hover{transform:translateY(-2px);box-shadow:0 6px 24px rgba(0,0,0,0.1);}
-  .stage-row{transition:all 0.15s ease;cursor:pointer;}
-  .stage-row:hover{background:${T.goldFaint}!important;transform:translateX(2px);}
+  .nav-item.active{background:${T.navActive};}
+  .card{transition:opacity 0.15s ease;}
+  .kpi-card{transition:opacity 0.15s ease;cursor:pointer;}
+  .kpi-card:hover{opacity:0.8;}
+  .stage-row{transition:opacity 0.12s ease;cursor:pointer;}
+  .stage-row:hover{opacity:0.72;}
   .lead-row{transition:background 0.1s ease;cursor:pointer;}
-  .lead-row:hover{background:${T.goldFaint}!important;}
-  .lead-card{transition:all 0.18s ease;cursor:pointer;}
-  .lead-card:hover{transform:translateY(-2px);box-shadow:0 6px 24px rgba(0,0,0,0.18);}
-  .hot-card{transition:all 0.18s ease;cursor:pointer;}
-  .hot-card:hover{transform:translateY(-2px);}
-  .btn-ghost{transition:all 0.15s ease;cursor:pointer;background:transparent;border:none;}
-  .src-btn{transition:all 0.15s ease;cursor:pointer;}
-  input[type=date]{color-scheme:${DARK.bg==="#161616"?"dark":"light"};}
+  .lead-row:hover{background:${T.raised}!important;}
+  .lead-card{transition:opacity 0.15s ease;cursor:pointer;}
+  .lead-card:hover{opacity:0.82;}
+  .hot-card{transition:opacity 0.15s ease;cursor:pointer;}
+  .hot-card:hover{opacity:0.78;}
+  .btn-ghost{transition:opacity 0.12s ease;cursor:pointer;background:transparent;border:none;}
+  .btn-ghost:hover{opacity:0.65;}
+  .src-btn{transition:all 0.12s ease;cursor:pointer;}
+  .gb-btn{background:${T.btn};color:${T.btnText};border:none;border-radius:20px;padding:7px 16px;font-size:12px;font-weight:500;cursor:pointer;font-family:${T.sans};transition:opacity 0.15s ease;display:inline-flex;align-items:center;gap:6px;}
+  .gb-btn:hover{opacity:0.85;}
+  input,textarea,select{outline:none;}
+  input[type=date]{color-scheme:dark;}
 `;
 
 // ─── SVG ICONS ────────────────────────────────────────────────────────────────
@@ -258,20 +265,66 @@ function LeadDrawer({open,stage,leads,onClose,T}){
 
 function DrawerRow({lead,i,T,SC}){
   const [exp,setExp]=useState(false);
+  const [note,setNote]=useState(lead.note||"");
+  const [editingNote,setEditingNote]=useState(false);
   const sc=SC[lead.source]||T.textMuted;
   const ac=lead.apptStatus==="Completed"?T.green:lead.apptStatus==="Booked"?T.gold:lead.apptStatus==="No-show"?T.red:T.textMuted;
   return(<>
     <div className="lead-row" onClick={()=>setExp(e=>!e)} style={{display:"grid",gridTemplateColumns:"1fr 100px 80px 70px 70px",padding:"11px 24px",borderBottom:`1px solid ${T.border}`,background:exp?T.goldFaint:i%2===0?T.surface:T.raised}}>
       <div style={{display:"flex",flexDirection:"column",gap:2,minWidth:0}}>
-        <div style={{display:"flex",alignItems:"center",gap:8}}><div style={{width:26,height:26,borderRadius:"50%",flexShrink:0,background:sc+"20",border:`1px solid ${sc}40`,display:"flex",alignItems:"center",justifyContent:"center",color:sc,fontSize:9,fontWeight:600}}>{lead.name.split(" ").map(n=>n[0]).join("")}</div><span style={{color:T.text,fontSize:12,fontWeight:500,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{lead.name}</span><span style={{color:T.textFaint,fontSize:10,flexShrink:0,transition:"transform 0.15s",transform:exp?"rotate(180deg)":"rotate(0)"}}> ▾</span></div>
+        <div style={{display:"flex",alignItems:"center",gap:8}}>
+          <div style={{width:26,height:26,borderRadius:"50%",flexShrink:0,background:sc+"20",border:`1px solid ${sc}40`,display:"flex",alignItems:"center",justifyContent:"center",color:sc,fontSize:9,fontWeight:600}}>{lead.name.split(" ").map(n=>n[0]).join("")}</div>
+          <span style={{color:T.text,fontSize:12,fontWeight:500,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{lead.name}</span>
+          <span style={{color:T.textFaint,fontSize:10,flexShrink:0,transition:"transform 0.15s",transform:exp?"rotate(180deg)":"rotate(0)"}}> ▾</span>
+        </div>
         <div style={{color:T.textMuted,fontSize:10,paddingLeft:34,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",fontFamily:T.mono}}>{lead.email}</div>
+        {note&&!exp&&<div style={{fontSize:10,color:T.textMuted,paddingLeft:34,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",fontStyle:"italic",marginTop:1}}>"{note}"</div>}
       </div>
       <div style={{display:"flex",alignItems:"center"}}><span style={{background:sc+"15",border:`1px solid ${sc}30`,borderRadius:6,padding:"2px 7px",color:sc,fontSize:9,fontWeight:500}}>{lead.source}</span></div>
       <div style={{display:"flex",alignItems:"center"}}><span style={{fontSize:11,color:T.textSub}}>{lead.owner}</span></div>
       <div style={{display:"flex",alignItems:"center"}}><span style={{fontSize:10,color:T.textMuted,fontFamily:T.mono}}>{lead.apptDate}</span></div>
       <div style={{display:"flex",alignItems:"center"}}><span style={{fontSize:10,color:ac,fontWeight:500}}>{lead.apptStatus}</span></div>
     </div>
-    {exp&&(<div style={{background:T.goldFaint,borderBottom:`1px solid ${T.border}`,padding:"12px 24px 14px 58px",display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:14,animation:"fadeIn 0.15s ease"}}>{[["Phone",lead.phone],["Stage",lead.stage],["Last Activity",lead.lastActivity],["Created",lead.createdAt],["Appt Date",lead.apptDate],["Appt Status",lead.apptStatus]].map(([l,v])=>(<div key={l}><div style={{fontSize:10,fontWeight:500,color:T.textMuted,marginBottom:3,textTransform:"uppercase",letterSpacing:"0.08em"}}>{l}</div><div style={{fontSize:11,color:l==="Appt Status"?ac:l==="Stage"?(STAGE_TEXT[v]||T.textSub):T.textSub}}>{v}</div></div>))}</div>)}
+    {exp&&(
+      <div style={{background:T.goldFaint,borderBottom:`1px solid ${T.border}`,padding:"14px 24px 16px 58px",animation:"fadeIn 0.15s ease"}}>
+        {/* Lead details grid */}
+        <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:14,marginBottom:14}}>
+          {[["Phone",lead.phone],["Stage",lead.stage],["Last Activity",lead.lastActivity],["Created",lead.createdAt],["Appt Date",lead.apptDate],["Appt Status",lead.apptStatus]].map(([l,v])=>(
+            <div key={l}>
+              <div style={{fontSize:10,fontWeight:500,color:T.textMuted,marginBottom:3,textTransform:"uppercase",letterSpacing:"0.08em"}}>{l}</div>
+              <div style={{fontSize:11,color:l==="Appt Status"?ac:l==="Stage"?(STAGE_TEXT[v]||T.textSub):T.textSub}}>{v}</div>
+            </div>
+          ))}
+        </div>
+        {/* Notes field */}
+        <div style={{borderTop:`1px solid ${T.border}`,paddingTop:12}}>
+          <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:7}}>
+            <span style={{fontSize:10,fontWeight:600,letterSpacing:"0.1em",textTransform:"uppercase",color:T.textMuted}}>Notes</span>
+            {!editingNote
+              ? <button onClick={e=>{e.stopPropagation();setEditingNote(true);}} style={{background:"transparent",border:`1px solid ${T.border}`,borderRadius:6,padding:"3px 10px",cursor:"pointer",color:T.gold,fontSize:10,display:"flex",alignItems:"center",gap:5,fontFamily:T.sans}}>
+                  {Ic.note} Edit
+                </button>
+              : <button onClick={e=>{e.stopPropagation();setEditingNote(false);lead.note=note;}} style={{background:T.green+"18",border:`1px solid ${T.green}40`,borderRadius:6,padding:"3px 10px",cursor:"pointer",color:T.green,fontSize:10,display:"flex",alignItems:"center",gap:5,fontFamily:T.sans}}>
+                  {Ic.check} Save
+                </button>
+            }
+          </div>
+          {editingNote
+            ? <textarea
+                value={note}
+                onChange={e=>setNote(e.target.value)}
+                onClick={e=>e.stopPropagation()}
+                rows={3}
+                placeholder="Last call outcome, objections, what's holding them back, next agreed step…"
+                style={{width:"100%",background:T.raised,border:`1px solid ${T.borderMid}`,borderRadius:8,color:T.text,fontSize:12,padding:"8px 10px",resize:"vertical",fontFamily:T.sans,boxSizing:"border-box"}}
+              />
+            : note
+              ? <div style={{fontSize:12,color:T.textSub,background:T.raised,borderRadius:8,padding:"8px 10px",lineHeight:1.5,whiteSpace:"pre-wrap"}}>{note}</div>
+              : <div style={{fontSize:12,color:T.textFaint,fontStyle:"italic",padding:"6px 0"}}>No notes yet — click Edit to add</div>
+          }
+        </div>
+      </div>
+    )}
   </>);}
 
 // ─── ORIGINAL DASHBOARD TABS ──────────────────────────────────────────────────
@@ -586,6 +639,49 @@ function HotHitList({hotLeads,allLeads,onAdd,onRemove,T}){
   );
 }
 
+function FollowUpQueueRow({lead,T,SC}){
+  const [showNote,setShowNote]=useState(false);
+  const [note,setNote]=useState(lead.note||"");
+  const [editing,setEditing]=useState(false);
+  const fuc=followUpColor(lead.followUp,T);
+  const ful=followUpLabel(lead.followUp);
+  const sc=SC[lead.stage];
+  return(
+    <div style={{borderRadius:8,background:T.raised,border:`1px solid ${T.border}`,overflow:"hidden"}}>
+      <div style={{display:"flex",alignItems:"center",gap:10,padding:"9px 12px"}}>
+        <div style={{width:3,height:28,borderRadius:2,background:fuc,flexShrink:0}}/>
+        <div style={{flex:1,minWidth:0}}>
+          <div style={{fontSize:12,fontWeight:500,color:T.text,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{lead.name}</div>
+          <div style={{fontSize:10,color:T.textMuted,marginTop:1}}>{lead.lastActivity}</div>
+        </div>
+        <Pill label={lead.stage} color={sc||T.gold}/>
+        <div style={{background:fuc+"18",border:`1px solid ${fuc}40`,borderRadius:6,padding:"2px 8px",display:"flex",alignItems:"center",gap:4,flexShrink:0}}>{Ic.clock}<span style={{fontSize:10,color:fuc,fontWeight:600}}>{ful}</span></div>
+        <button onClick={()=>setShowNote(s=>!s)} style={{background:"transparent",border:`1px solid ${showNote?T.gold:T.border}`,borderRadius:6,padding:"3px 8px",cursor:"pointer",color:showNote?T.gold:T.textMuted,fontSize:10,display:"flex",alignItems:"center",gap:4,flexShrink:0,transition:"all 0.15s"}}>
+          {Ic.note}
+          <span style={{fontFamily:T.sans}}>{note?"Edit":"Add note"}</span>
+        </button>
+      </div>
+      {showNote&&(
+        <div style={{borderTop:`1px solid ${T.border}`,padding:"10px 12px 10px 25px",background:T.surface}}>
+          {editing
+            ? <div>
+                <textarea value={note} onChange={e=>setNote(e.target.value)} rows={2} placeholder="Add a note…" style={{width:"100%",background:T.raised,border:`1px solid ${T.borderMid}`,borderRadius:7,color:T.text,fontSize:11,padding:"7px 9px",resize:"none",fontFamily:T.sans,boxSizing:"border-box",marginBottom:7}}/>
+                <div style={{display:"flex",gap:7}}>
+                  <button onClick={()=>{lead.note=note;setEditing(false);}} style={{background:T.green+"18",border:`1px solid ${T.green}40`,borderRadius:6,padding:"4px 12px",cursor:"pointer",color:T.green,fontSize:10,fontFamily:T.sans,display:"flex",alignItems:"center",gap:4}}>{Ic.check} Save</button>
+                  <button onClick={()=>setEditing(false)} style={{background:"transparent",border:`1px solid ${T.border}`,borderRadius:6,padding:"4px 12px",cursor:"pointer",color:T.textMuted,fontSize:10,fontFamily:T.sans}}>Cancel</button>
+                </div>
+              </div>
+            : <div style={{display:"flex",alignItems:"flex-start",justifyContent:"space-between",gap:10}}>
+                <div style={{fontSize:11,color:note?T.textSub:T.textFaint,fontStyle:note?"normal":"italic",lineHeight:1.5,flex:1}}>{note||"No notes yet"}</div>
+                <button onClick={()=>setEditing(true)} style={{background:"transparent",border:"none",cursor:"pointer",color:T.gold,fontSize:10,flexShrink:0,fontFamily:T.sans,display:"flex",alignItems:"center",gap:4}}>{Ic.note} Edit</button>
+              </div>
+          }
+        </div>
+      )}
+    </div>
+  );
+}
+
 function FollowUpQueue({leads,T,pipelineType}){
   const today=new Date(2026,4,17);today.setHours(0,0,0,0);
   const queue=[...leads].filter(l=>!["Closed Won","Disqualified","Show"].includes(l.stage)).sort((a,b)=>new Date(a.followUp)-new Date(b.followUp));
@@ -593,13 +689,8 @@ function FollowUpQueue({leads,T,pipelineType}){
   return(<Card T={T} style={{padding:"18px 20px"}}>
     <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:14}}>{Ic.clock}<span style={{fontSize:13,fontWeight:600,color:T.text}}>Follow-Up Queue</span><span style={{background:T.goldFaint,border:`1px solid ${T.gold}30`,borderRadius:6,padding:"1px 8px",fontSize:11,color:T.gold,fontFamily:T.mono}}>{queue.length}</span><span style={{fontSize:11,color:T.textMuted,marginLeft:"auto"}}>Sorted by due date</span></div>
     <div style={{display:"flex",gap:14,marginBottom:12}}>{[{l:"Overdue",c:T.red},{l:"Due Today",c:T.orange},{l:"Upcoming",c:T.green}].map(i=>(<div key={i.l} style={{display:"flex",alignItems:"center",gap:5}}><div style={{width:8,height:8,borderRadius:"50%",background:i.c}}/><span style={{fontSize:10,color:T.textMuted}}>{i.l}</span></div>))}</div>
-    <div style={{display:"flex",flexDirection:"column",gap:4,maxHeight:280,overflowY:"auto"}}>
-      {queue.map(lead=>{const fuc=followUpColor(lead.followUp,T);const ful=followUpLabel(lead.followUp);const sc=SC[lead.stage];return(<div key={lead.id} style={{display:"flex",alignItems:"center",gap:10,padding:"9px 12px",borderRadius:8,background:T.raised,border:`1px solid ${T.border}`}}>
-        <div style={{width:3,height:28,borderRadius:2,background:fuc,flexShrink:0}}/>
-        <div style={{flex:1,minWidth:0}}><div style={{fontSize:12,fontWeight:500,color:T.text,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{lead.name}</div><div style={{fontSize:10,color:T.textMuted,marginTop:1}}>{lead.lastActivity}</div></div>
-        <Pill label={lead.stage} color={sc||T.gold}/>
-        <div style={{background:fuc+"18",border:`1px solid ${fuc}40`,borderRadius:6,padding:"2px 8px",display:"flex",alignItems:"center",gap:4,flexShrink:0}}>{Ic.clock}<span style={{fontSize:10,color:fuc,fontWeight:600}}>{ful}</span></div>
-      </div>);})}
+    <div style={{display:"flex",flexDirection:"column",gap:4,maxHeight:320,overflowY:"auto"}}>
+      {queue.map(lead=><FollowUpQueueRow key={lead.id} lead={lead} T={T} SC={SC}/>)}
     </div>
   </Card>);}
 
@@ -748,10 +839,6 @@ function CloserPipeline({T}){
 
   return(<div style={{display:"flex",flexDirection:"column",gap:16,animation:"slideUp 0.2s ease"}}>
 
-    <PipelineDateFilter active={activeDateFilter} setActive={setActiveDateFilter} counts={counts} T={T}/>
-
-  return(<div style={{display:"flex",flexDirection:"column",gap:16,animation:"slideUp 0.2s ease"}}>
-
     <PipelineDateFilter dateRange={dateRange} setDateRange={setDateRange} totalLeads={leads.length} T={T}/>
 
     <div style={{display:"grid",gridTemplateColumns:"repeat(5,1fr)",gap:10}}>
@@ -833,26 +920,47 @@ function Sidebar({activeTab,setActiveTab,darkMode,setDarkMode,T}){
   const dashboard=NAV_ITEMS.filter(n=>n.group==="dashboard");
   const pipelines=NAV_ITEMS.filter(n=>n.group==="pipelines");
   const NavGroup=({items,label})=>(<>
-    <div style={{fontSize:10,fontWeight:600,letterSpacing:"0.12em",textTransform:"uppercase",color:T.textMuted,padding:"4px 8px",marginBottom:4}}>{label}</div>
-    {items.map(item=>{const on=activeTab===item.id;return(<div key={item.id} className={`nav-item${on?" active":""}`} onClick={()=>setActiveTab(item.id)} style={{display:"flex",alignItems:"center",gap:10,padding:"8px 10px",marginBottom:2,background:on?T.navActive:"transparent",border:on?`1px solid ${T.sidebarBorder}`:"1px solid transparent"}}><span style={{color:on?T.gold:T.textMuted,display:"flex",alignItems:"center",flexShrink:0}}>{item.icon}</span><span style={{fontSize:13,fontWeight:on?500:400,color:on?T.text:T.textSub}}>{item.label}</span></div>);})}
+    <div style={{fontSize:9,fontWeight:600,letterSpacing:"0.14em",textTransform:"uppercase",color:T.sectionLabel||T.textMuted,padding:"10px 10px 5px",marginTop:4}}>{label}</div>
+    {items.map(item=>{const on=activeTab===item.id;return(<div key={item.id} className={`nav-item${on?" active":""}`} onClick={()=>setActiveTab(item.id)} style={{display:"flex",alignItems:"center",gap:9,padding:"7px 10px",marginBottom:1}}><span style={{color:on?T.gold:T.textMuted,display:"flex",alignItems:"center",flexShrink:0,opacity:on?1:0.75}}>{item.icon}</span><span style={{fontSize:13,fontWeight:400,color:on?T.text:T.textSub}}>{item.label}</span></div>);})}
   </>);
-  return(<div style={{width:210,flexShrink:0,background:T.sidebar,borderRight:`1px solid ${T.sidebarBorder}`,display:"flex",flexDirection:"column",height:"100vh",position:"sticky",top:0,overflowY:"auto"}}>
-    <div style={{padding:"20px 16px 16px",borderBottom:`1px solid ${T.sidebarBorder}`}}>
-      <div style={{display:"flex",alignItems:"center",justifyContent:"space-between"}}><img src="/logo.png" alt="Goldbar" style={{height:26,width:"auto",objectFit:"contain",filter:darkMode?"brightness(1.1)":"none"}}/><span style={{fontSize:10,fontWeight:600,color:T.textMuted,letterSpacing:"0.14em",background:T.goldFaint,border:`1px solid ${T.gold}30`,borderRadius:6,padding:"2px 7px"}}>HUB</span></div>
+  return(
+    <div style={{width:200,flexShrink:0,background:T.sidebar,borderRight:`1px solid ${T.sidebarBorder}`,display:"flex",flexDirection:"column",height:"100vh",position:"sticky",top:0,overflowY:"auto"}}>
+      {/* Logo */}
+      <div style={{padding:"18px 14px 14px"}}>
+        <img src="/logo.png" alt="Goldbar" style={{height:24,width:"auto",objectFit:"contain",filter:darkMode?"brightness(1.1)":"none"}}/>
+      </div>
+
+      {/* Nav */}
+      <div style={{padding:"0 6px",flex:1}}>
+        <NavGroup items={dashboard} label="Sales"/>
+        <div style={{height:"0.5px",background:T.sidebarBorder,margin:"8px 6px"}}/>
+        <NavGroup items={pipelines} label="Pipelines"/>
+        <div style={{height:"0.5px",background:T.sidebarBorder,margin:"8px 6px"}}/>
+        <div style={{fontSize:9,fontWeight:600,letterSpacing:"0.14em",textTransform:"uppercase",color:T.sectionLabel||T.textMuted,padding:"10px 10px 5px",marginTop:4}}>Connect</div>
+        {[{icon:Ic.hubspot,label:"HubSpot"},{icon:Ic.calendly,label:"Calendly"}].map(item=>(
+          <div key={item.label} className="nav-item" style={{display:"flex",alignItems:"center",gap:9,padding:"7px 10px",marginBottom:1}}>
+            <span style={{color:T.textMuted,display:"flex",alignItems:"center",flexShrink:0,opacity:0.6}}>{item.icon}</span>
+            <span style={{fontSize:13,color:T.textSub}}>{item.label}</span>
+          </div>
+        ))}
+      </div>
+
+      {/* Footer */}
+      <div style={{padding:"10px 8px 14px",borderTop:`1px solid ${T.sidebarBorder}`}}>
+        {/* Light/Dark toggle — styled like goldy.ai pill */}
+        <button onClick={()=>setDarkMode(d=>!d)} style={{width:"100%",background:T.navActive,border:`1px solid ${T.border}`,borderRadius:8,padding:"8px 10px",cursor:"pointer",display:"flex",alignItems:"center",gap:7,marginBottom:8,color:T.textSub,fontSize:12,fontFamily:T.sans}}>
+          <span style={{display:"flex",color:T.textMuted}}>{darkMode?Ic.moon:Ic.sun}</span>
+          {darkMode?"Dark mode":"Light mode"}
+        </button>
+        {/* User */}
+        <div style={{display:"flex",alignItems:"center",gap:8,padding:"6px 8px",borderRadius:8}}>
+          <div style={{width:28,height:28,borderRadius:"50%",background:`linear-gradient(135deg,${T.gold},${T.goldDim})`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:11,fontWeight:700,color:"#fff",flexShrink:0}}>EO</div>
+          <div><div style={{fontSize:12,fontWeight:500,color:T.text}}>Ebube Okorie</div><div style={{fontSize:10,color:T.textMuted}}>Admin</div></div>
+        </div>
+      </div>
     </div>
-    <div style={{padding:"12px 8px",flex:1}}>
-      <NavGroup items={dashboard} label="Dashboard"/>
-      <div style={{height:"0.5px",background:T.sidebarBorder,margin:"10px 8px"}}/>
-      <NavGroup items={pipelines} label="Pipelines"/>
-      <div style={{height:"0.5px",background:T.sidebarBorder,margin:"10px 8px"}}/>
-      <div style={{fontSize:10,fontWeight:600,letterSpacing:"0.12em",textTransform:"uppercase",color:T.textMuted,padding:"4px 8px",marginBottom:4}}>Integrations</div>
-      {[{icon:Ic.hubspot,label:"HubSpot"},{icon:Ic.calendly,label:"Calendly"}].map(item=>(<div key={item.label} className="nav-item" style={{display:"flex",alignItems:"center",gap:10,padding:"8px 10px",marginBottom:2}}><span style={{color:T.textMuted,display:"flex",alignItems:"center",flexShrink:0}}>{item.icon}</span><span style={{fontSize:13,color:T.textMuted}}>{item.label}</span></div>))}
-    </div>
-    <div style={{padding:"12px 8px",borderTop:`1px solid ${T.sidebarBorder}`}}>
-      <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"8px 10px",marginBottom:8}}><div style={{display:"flex",alignItems:"center",gap:6,color:T.textMuted}}>{darkMode?Ic.moon:Ic.sun}<span style={{fontSize:12,color:T.textMuted}}>{darkMode?"Dark":"Light"}</span></div><button onClick={()=>setDarkMode(d=>!d)} style={{width:34,height:18,borderRadius:9,border:"none",cursor:"pointer",position:"relative",background:darkMode?T.gold:"#888",transition:"background 0.2s",flexShrink:0}}><div style={{position:"absolute",top:2,left:darkMode?18:2,width:14,height:14,borderRadius:"50%",background:"white",transition:"left 0.2s",boxShadow:"0 1px 3px rgba(0,0,0,0.3)"}}/></button></div>
-      <div style={{display:"flex",alignItems:"center",gap:8,padding:"8px 10px",borderRadius:8,background:T.navActive}}><div style={{width:28,height:28,borderRadius:"50%",background:`linear-gradient(135deg,${T.gold},${T.goldDim})`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:11,fontWeight:700,color:"#fff",flexShrink:0}}>O</div><div><div style={{fontSize:12,fontWeight:500,color:T.text}}>Okorie</div><div style={{fontSize:10,color:T.textMuted}}>Client Media Buyer</div></div></div>
-    </div>
-  </div>);}
+  );
+}
 
 // ─── HEADER ───────────────────────────────────────────────────────────────────
 const PAGE_TITLES={
@@ -867,13 +975,28 @@ const PAGE_TITLES={
 
 function Header({activeTab,dateRange,setDateRange,activeSrc,setActiveSrc,showFilters,T}){
   const pg=PAGE_TITLES[activeTab]||{title:"Sales",italic:"Dashboard",sub:""};
-  return(<div style={{background:T.headerBg,borderBottom:`1px solid ${T.border}`,flexShrink:0}}>
-    <div style={{padding:"18px 28px 14px",display:"flex",alignItems:"flex-end",justifyContent:"space-between"}}>
-      <div><h1 style={{fontSize:26,fontWeight:600,color:T.text,display:"flex",alignItems:"baseline",gap:8,lineHeight:1}}>{pg.title}<span style={{fontFamily:"'Playfair Display',Georgia,serif",fontStyle:"italic",fontWeight:400,color:T.gold,fontSize:28}}>{pg.italic}</span></h1><p style={{fontSize:12,color:T.textMuted,marginTop:4}}>{pg.sub}</p></div>
-      <div style={{display:"flex",alignItems:"center",gap:10}}><div style={{display:"flex",alignItems:"center",gap:6,padding:"6px 12px",background:T.green+"15",border:`1px solid ${T.green}30`,borderRadius:8}}><div style={{width:6,height:6,borderRadius:"50%",background:T.green,animation:"pulse 2s ease infinite"}}/><span style={{fontSize:11,fontWeight:500,color:T.green}}>Live · HubSpot + Calendly</span></div><div style={{fontSize:12,color:T.textMuted,fontFamily:T.mono}}>May 17, 2026</div></div>
+  return(
+    <div style={{background:T.headerBg,borderBottom:`1px solid ${T.border}`,flexShrink:0}}>
+      <div style={{padding:"20px 28px 14px",display:"flex",alignItems:"flex-end",justifyContent:"space-between"}}>
+        <div>
+          <h1 style={{fontSize:24,fontWeight:400,color:T.text,display:"flex",alignItems:"baseline",gap:6,lineHeight:1.1,letterSpacing:"-0.01em"}}>
+            {pg.title}{" "}
+            <span style={{fontFamily:"'Playfair Display',Georgia,serif",fontStyle:"italic",fontWeight:400,color:T.gold}}>{pg.italic}</span>
+          </h1>
+          <p style={{fontSize:12,color:T.textMuted,marginTop:5}}>{pg.sub}</p>
+        </div>
+        <div style={{display:"flex",alignItems:"center",gap:10}}>
+          <div style={{display:"flex",alignItems:"center",gap:5,padding:"5px 10px",background:T.green+"12",border:`1px solid ${T.green}20`,borderRadius:20}}>
+            <div style={{width:5,height:5,borderRadius:"50%",background:T.green,animation:"pulse 2s ease infinite"}}/>
+            <span style={{fontSize:10,fontWeight:400,color:T.green}}>Live · HubSpot + Calendly</span>
+          </div>
+          <span style={{fontSize:11,color:T.textMuted,fontFamily:T.mono}}>May 17, 2026</span>
+        </div>
+      </div>
+      {showFilters&&<FilterBar dateRange={dateRange} setDateRange={setDateRange} activeSrc={activeSrc} setActiveSrc={setActiveSrc} T={T}/>}
     </div>
-    {showFilters&&<FilterBar dateRange={dateRange} setDateRange={setDateRange} activeSrc={activeSrc} setActiveSrc={setActiveSrc} T={T}/>}
-  </div>);}
+  );
+}
 
 // ─── ROOT ─────────────────────────────────────────────────────────────────────
 export default function App(){
